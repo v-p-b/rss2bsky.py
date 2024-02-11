@@ -2,22 +2,33 @@ import arrow
 import feedparser
 import json
 import os
-import pprint
+import logging
+import time
 
-pp = pprint.PrettyPrinter(indent=4)
-
-from atproto import Client
+from atproto import Client, client_utils
 from bs4 import BeautifulSoup
 
 
 def get_last_bsky(client):
     timeline = client.get_author_feed(config["bsky"]["handle"])
     for titem in timeline.feed:
-        # print(titem.post.record.text, titem.reason == None, titem.post.record.reply == None, titem.post.record.created_at)
         # We only care about top-level, non-reply posts
         if titem.reason == None and titem.post.record.reply == None:
             return arrow.get(titem.post.record.created_at)
     # TODO If we only get replies and reposts we are in trouble!
+
+
+# https://www.docs.bsky.app/docs/advanced-guides/post-richtext
+# https://www.spokenlikeageek.com/2023/11/08/posting-to-bluesky-via-the-api-from-php-part-three-links/
+# https://atproto.blue/en/latest/atproto_client/utils/text_builder.html
+def make_rich(content):
+    text_builder = client_utils.TextBuilder()
+    for line in content.split("\n"):
+        if line.startswith("http"):
+            text_builder.link(line + "\n", line.strip())
+        else:
+            text_builder.text(line + "\n")
+    return text_builder
 
 
 # https://stackoverflow.com/a/66690657
@@ -49,18 +60,33 @@ config = json.load(open(os.path.join(current_path, "config.json"), "r"))
 client = Client()
 client.login(config["bsky"]["username"], config["bsky"]["password"])
 
-last_bsky = get_last_bsky(client)
-feed = feedparser.parse(config["feed"])
+logging.basicConfig(encoding="utf-8", level=logging.INFO)
 
-for item in feed["items"]:
-    rss_time = arrow.get(item["published"])
-    content = item["content"][0]["value"]
-    for filter_method in FILTERS:
-        content = filter_method(content)
-    if len(content) > 0:
-        print(content)
-        print(rss_time, last_bsky)
-        if rss_time > last_bsky:
-            print("Post this")
-        else:
-            print("Don't post")
+
+def run():
+    last_bsky = get_last_bsky(client)
+    feed = feedparser.parse(config["feed"])
+
+    for item in feed["items"]:
+        rss_time = arrow.get(item["published"])
+        content = item["content"][0]["value"]
+        for filter_method in FILTERS:
+            content = filter_method(content)
+        if len(content) > 300:
+            logging.warning("Post too long :( %s" % (item["link"]))
+        if len(content.strip()) > 0:
+            rich_text = make_rich(content)
+            rich_text.link("\n\nOriginal post", item["link"])
+            if rss_time > last_bsky:
+                try:
+                    client.send_post(rich_text)
+                    logging.info("Sent post %s" % (item["link"]))
+                except Exception as e:
+                    logging.exception("Failed to post %s" % (item["link"]))
+            else:
+                logging.debug("Not sending %s" % (item["link"]))
+
+
+while True:
+    run()
+    time.sleep(config["sleep"])

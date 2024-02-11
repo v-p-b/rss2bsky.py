@@ -1,0 +1,9 @@
+{
+  "feed": "https://example.com/feed/rss-or-atom",
+  "bsky": {
+    "handle": "yourhandle.bsky.social",
+    "username": "youruser@example.com",
+    "password": ""
+  },
+  "sleep": 60
+}
