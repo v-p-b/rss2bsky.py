@@ -60,7 +60,7 @@ config = json.load(open(os.path.join(current_path, "config.json"), "r"))
 client = Client()
 client.login(config["bsky"]["username"], config["bsky"]["password"])
 
-logging.basicConfig(encoding="utf-8", level=logging.INFO)
+logging.basicConfig(filename="rss2bsky.log", encoding="utf-8", level=logging.INFO)
 
 
 def run():
