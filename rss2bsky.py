@@ -51,8 +51,13 @@ def mention_filter(content):
     else:
         return content
 
+def length_filter(content):
+    if len(content)>256:
+        content=content[0:253]
+        content+="..."
+    return content
 
-FILTERS = [html_filter, mention_filter]
+FILTERS = [html_filter, length_filter, mention_filter]
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 config = json.load(open(os.path.join(current_path, "config.json"), "r"))
