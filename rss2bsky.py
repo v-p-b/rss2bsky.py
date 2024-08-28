@@ -73,7 +73,7 @@ def run():
     feed = feedparser.parse(config["feed"])
 
     for item in feed["items"]:
-        rss_time = arrow.get(item["published"])
+        rss_time = arrow.get(item["published"], [arrow.FORMAT_RFC822, "ddd, DD MMM YYYY HH:mm:ss Z"])
         content = item["content"][0]["value"]
         for filter_method in FILTERS:
             content = filter_method(content)
