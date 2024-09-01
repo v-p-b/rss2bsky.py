@@ -51,11 +51,13 @@ def mention_filter(content):
     else:
         return content
 
+
 def length_filter(content):
-    if len(content)>256:
-        content=content[0:253]
-        content+="..."
+    if len(content) > 256:
+        content = content[0:253]
+        content += "..."
     return content
+
 
 FILTERS = [html_filter, length_filter, mention_filter]
 
@@ -73,7 +75,12 @@ def run():
     feed = feedparser.parse(config["feed"])
 
     for item in feed["items"]:
-        rss_time = arrow.get(item["published"])
+        rss_time = None
+        try:
+            rss_time = arrow.get(item["published"])
+        except arrow.parser.ParserError:
+            rss_time = arrow.get(item["published"], [arrow.FORMAT_RFC2822])
+
         content = item["content"][0]["value"]
         for filter_method in FILTERS:
             content = filter_method(content)
