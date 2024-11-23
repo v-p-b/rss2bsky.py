@@ -4,8 +4,8 @@ import json
 import os
 import logging
 import time
-
-from atproto import Client, client_utils
+import textwrap
+from atproto import Client, client_utils, models
 from bs4 import BeautifulSoup
 
 
@@ -31,6 +31,11 @@ def make_rich(content):
         else:
             text_builder.text(line + "\n")
     return text_builder
+
+
+def split_message(msg, size=280):
+    parts = textwrap.wrap(msg, width=size, break_on_hyphens=False, replace_whitespace=False)
+    return parts
 
 
 # https://stackoverflow.com/a/66690657
@@ -61,14 +66,42 @@ def length_filter(content):
     return content
 
 
-FILTERS = [html_filter, length_filter, mention_filter]
-logging.basicConfig(format="%(asctime)s %(message)s", filename="rss2bsky.log", encoding="utf-8", level=logging.INFO)
+def send_thread(msg, link, client):
+    posts = split_message(msg)
+    n = len(posts)
+    parent = None
+    root = None
+    logging.info("Sending Thread %s in %d parts" % (link, n))
+    for i, p in enumerate(posts):
+        logging.debug("Post: '%s'" % p)
+        rich_text = make_rich(p)
+        rich_text.text(" %d/%d" % (i+1, n))
+        if i == n - 1:
+            rich_text.link("\n\nOriginal->", link)
+        if i == 0:
+            post = client.send_post(text=rich_text)
+            root = models.create_strong_ref(post)
+        else:
+            reply_ref = models.AppBskyFeedPost.ReplyRef(parent=parent, root=root)
+            post = client.send_post(text=rich_text, reply_to=reply_ref)
+        parent = models.create_strong_ref(post)
+
+
+#FILTERS = [html_filter, length_filter, mention_filter]
+FILTERS = [html_filter, mention_filter]
+
+logging.basicConfig(
+    format="%(asctime)s %(message)s",
+    filename="rss2bsky.log",
+    encoding="utf-8",
+    level=logging.INFO,
+)
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 config = json.load(open(os.path.join(current_path, "config.json"), "r"))
 
 client = Client()
-logged_in=False
+logged_in = False
 
 backoff = 600
 while not logged_in:
@@ -82,7 +115,6 @@ while not logged_in:
         backoff += 600
 
 
-
 def run():
     last_bsky = get_last_bsky(client)
     feed = feedparser.parse(config["feed"])
@@ -93,23 +125,29 @@ def run():
             rss_time = arrow.get(item["published"])
         except arrow.parser.ParserError:
             rss_time = arrow.get(item["published"], [arrow.FORMAT_RFC2822])
-        logging.debug("RSS Time: %s",str(rss_time))
+        logging.info("RSS Time: %s", str(rss_time))
         content = item["content"][0]["value"]
+        logging.info("Original Content length: %d" % (len(content)))
         for filter_method in FILTERS:
             content = filter_method(content)
-        if len(content) > 300:
-            logging.warning("Post too long :( %s" % (item["link"]))
-        if len(content.strip()) > 0:
-            rich_text = make_rich(content)
-            rich_text.link("\n\nOriginal post", item["link"])
-            if rss_time > last_bsky:
+        logging.info("Filtered Content length: %d" % (len(content)))
+        if rss_time > last_bsky:
+            if len(content) > 300:
+                try:
+                    send_thread(content, item["link"], client)
+                except:
+                    logging.exception("Exception during thread sending")
+                    raise
+            elif len(content.strip()) > 0:
+                rich_text = make_rich(content)
+                rich_text.link("\n\nOriginal->", item["link"])
                 try:
                     client.send_post(rich_text)
                     logging.info("Sent post %s" % (item["link"]))
                 except Exception as e:
                     logging.exception("Failed to post %s" % (item["link"]))
-            else:
-                logging.debug("Not sending %s" % (item["link"]))
+        else:
+            logging.debug("Not sending %s" % (item["link"]))
 
 
 while True:
