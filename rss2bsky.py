@@ -14,7 +14,9 @@ def get_last_bsky(client):
     for titem in timeline.feed:
         # We only care about top-level, non-reply posts
         if titem.reason == None and titem.post.record.reply == None:
+            logging.info("Record created %s", str(titem.post.record.created_at))
             return arrow.get(titem.post.record.created_at)
+        time.sleep(3)
     # TODO If we only get replies and reposts we are in trouble!
 
 
@@ -60,14 +62,25 @@ def length_filter(content):
 
 
 FILTERS = [html_filter, length_filter, mention_filter]
+logging.basicConfig(format="%(asctime)s %(message)s", filename="rss2bsky.log", encoding="utf-8", level=logging.INFO)
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 config = json.load(open(os.path.join(current_path, "config.json"), "r"))
 
 client = Client()
-client.login(config["bsky"]["username"], config["bsky"]["password"])
+logged_in=False
 
-logging.basicConfig(filename="rss2bsky.log", encoding="utf-8", level=logging.INFO)
+backoff = 600
+while not logged_in:
+    try:
+        client.login(config["bsky"]["username"], config["bsky"]["password"])
+        logged_in = True
+    except:
+        raise
+        logging.exception("Login exception")
+        time.sleep(backoff)
+        backoff += 600
+
 
 
 def run():
@@ -80,7 +93,7 @@ def run():
             rss_time = arrow.get(item["published"])
         except arrow.parser.ParserError:
             rss_time = arrow.get(item["published"], [arrow.FORMAT_RFC2822])
-
+        logging.debug("RSS Time: %s",str(rss_time))
         content = item["content"][0]["value"]
         for filter_method in FILTERS:
             content = filter_method(content)
