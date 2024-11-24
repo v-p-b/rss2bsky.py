@@ -5,6 +5,8 @@ import os
 import logging
 import time
 import textwrap
+import re
+
 from atproto import Client, client_utils, models
 from bs4 import BeautifulSoup
 
@@ -29,12 +31,20 @@ def make_rich(content):
         if line.startswith("http"):
             text_builder.link(line + "\n", line.strip())
         else:
-            text_builder.text(line + "\n")
+            tag_split = re.split("(#[a-zA-Z0-9]+)", line)
+            for t in tag_split:
+                if t.startswith("#"):
+                    text_builder.tag(t, t[1:])
+                else:
+                    text_builder.text(t)
+            text_builder.text("\n")
     return text_builder
 
 
 def split_message(msg, size=280):
-    parts = textwrap.wrap(msg, width=size, break_on_hyphens=False, replace_whitespace=False)
+    parts = textwrap.wrap(
+        msg, width=size, break_on_hyphens=False, replace_whitespace=False
+    )
     return parts
 
 
@@ -75,7 +85,7 @@ def send_thread(msg, link, client):
     for i, p in enumerate(posts):
         logging.debug("Post: '%s'" % p)
         rich_text = make_rich(p)
-        rich_text.text(" %d/%d" % (i+1, n))
+        rich_text.text(" %d/%d" % (i + 1, n))
         if i == n - 1:
             rich_text.link("\n\nOriginal->", link)
         if i == 0:
@@ -87,7 +97,7 @@ def send_thread(msg, link, client):
         parent = models.create_strong_ref(post)
 
 
-#FILTERS = [html_filter, length_filter, mention_filter]
+# FILTERS = [html_filter, length_filter, mention_filter]
 FILTERS = [html_filter, mention_filter]
 
 logging.basicConfig(
