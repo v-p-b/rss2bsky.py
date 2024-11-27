@@ -30,6 +30,8 @@ def make_rich(content):
     for line in content.split("\n"):
         if line.startswith("http"):
             text_builder.link(line + "\n", line.strip())
+        elif line.startswith("RE: http"):
+            text_builder.link(line + "\n", line.split(" ")[1].strip())
         else:
             tag_split = re.split("(#[a-zA-Z0-9]+)", line)
             for t in tag_split:
@@ -142,7 +144,7 @@ def run():
             content = filter_method(content)
         logging.info("Filtered Content length: %d" % (len(content)))
         if rss_time > last_bsky:
-            if len(content) > 300:
+            if len(content) > 280:
                 try:
                     send_thread(content, item["link"], client)
                 except:
@@ -150,6 +152,7 @@ def run():
                     raise
             elif len(content.strip()) > 0:
                 rich_text = make_rich(content)
+                logging.info("Rich text length: %d" % (len(str(rich_text))))
                 rich_text.link("\n\nOriginal->", item["link"])
                 try:
                     client.send_post(rich_text)
