@@ -77,6 +77,11 @@ def length_filter(content):
         content += "..."
     return content
 
+def frombsky_filter(content):
+    if "#frombsky" in content.lower():
+        return ""
+    else:
+        return content
 
 def send_thread(msg, link, client):
     posts = split_message(msg)
@@ -100,7 +105,7 @@ def send_thread(msg, link, client):
 
 
 # FILTERS = [html_filter, length_filter, mention_filter]
-FILTERS = [html_filter, mention_filter]
+FILTERS = [frombsky_filter, html_filter, mention_filter]
 
 logging.basicConfig(
     format="%(asctime)s %(message)s",
@@ -121,7 +126,6 @@ while not logged_in:
         client.login(config["bsky"]["username"], config["bsky"]["password"])
         logged_in = True
     except:
-        raise
         logging.exception("Login exception")
         time.sleep(backoff)
         backoff += 600
