@@ -9,6 +9,7 @@ import re
 
 from atproto import Client, client_utils, models
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
 
 def get_last_bsky(client):
@@ -29,17 +30,22 @@ def make_rich(content):
     text_builder = client_utils.TextBuilder()
     for line in content.split("\n"):
         if line.startswith("http"):
-            text_builder.link(line + "\n", line.strip())
+            url = line.strip()
+            url_obj = urlparse(url)
+            text_builder.link("\n %s -> \n" % (url_obj.netloc), url)
         elif line.startswith("RE: http"):
-            text_builder.link(line + "\n", line.split(" ")[1].strip())
+            url = line.split(" ")[1].strip()
+            url_obj = urlparse(url)
+            text_builder.link("\n>Quoted post<\n", url)
         else:
             tag_split = re.split("(#[a-zA-Z0-9]+)", line)
-            for t in tag_split:
+            for i, t in enumerate(tag_split):
+                if i == len(tag_split) - 1:
+                    t = t + "\n"
                 if t.startswith("#"):
-                    text_builder.tag(t, t[1:])
+                    text_builder.tag(t, t[1:].strip())
                 else:
                     text_builder.text(t)
-            text_builder.text("\n")
     return text_builder
 
 
@@ -61,7 +67,7 @@ def html_filter(content):
             text += "\n"
         elif e.name == "li":
             text += "\n- "
-    return text
+    return text.strip()
 
 
 def mention_filter(content):
