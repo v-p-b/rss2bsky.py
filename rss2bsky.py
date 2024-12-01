@@ -65,7 +65,7 @@ def html_filter(content):
 
 
 def mention_filter(content):
-    if content.startswith("@"):
+    if content.startswith("@") or content.strip().lower().startswith("/cc"):
         return ""
     else:
         return content
@@ -77,11 +77,13 @@ def length_filter(content):
         content += "..."
     return content
 
+
 def frombsky_filter(content):
     if "#frombsky" in content.lower():
         return ""
     else:
         return content
+
 
 def send_thread(msg, link, client):
     posts = split_message(msg)
