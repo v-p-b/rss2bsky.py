@@ -1,5 +1,5 @@
 import arrow
-import feedparser
+import fastfeedparser
 import json
 import os
 import logging
@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 
 
 def get_last_bsky(client):
+    if offline:
+        return arrow.get(0)
     timeline = client.get_author_feed(config["bsky"]["handle"])
     for titem in timeline.feed:
         # We only care about top-level, non-reply posts
@@ -92,6 +94,8 @@ def frombsky_filter(content):
 
 
 def send_thread(msg, link, client):
+    if offline:
+        return
     posts = split_message(msg)
     n = len(posts)
     parent = None
@@ -126,31 +130,32 @@ current_path = os.path.dirname(os.path.realpath(__file__))
 config = json.load(open(os.path.join(current_path, "config.json"), "r"))
 
 client = Client()
-logged_in = False
+offline = False
 
-backoff = 600
-while not logged_in:
-    try:
-        client.login(config["bsky"]["username"], config["bsky"]["password"])
-        logged_in = True
-    except:
-        logging.exception("Login exception")
-        time.sleep(backoff)
-        backoff += 600
+if config["bsky"]["handle"] == "offline":
+    offline = True
+
+if not offline:
+    logged_in = False
+    backoff = 600
+    while not logged_in:
+        try:
+            client.login(config["bsky"]["username"], config["bsky"]["password"])
+            logged_in = True
+        except:
+            logging.exception("Login exception")
+            time.sleep(backoff)
+            backoff += 600
 
 
 def run():
     last_bsky = get_last_bsky(client)
-    feed = feedparser.parse(config["feed"])
+    feed = fastfeedparser.parse(config["feed"])
 
-    for item in feed["items"]:
-        rss_time = None
-        try:
-            rss_time = arrow.get(item["published"])
-        except arrow.parser.ParserError:
-            rss_time = arrow.get(item["published"], [arrow.FORMAT_RFC2822])
+    for item in feed.entries:
+        rss_time = arrow.get(item.published)
         logging.info("RSS Time: %s", str(rss_time))
-        content = item["content"][0]["value"]
+        content = item.content[0]["value"]
         logging.info("Original Content length: %d" % (len(content)))
         for filter_method in FILTERS:
             content = filter_method(content)
@@ -158,21 +163,22 @@ def run():
         if rss_time > last_bsky:
             if len(content) > 280:
                 try:
-                    send_thread(content, item["link"], client)
+                    send_thread(content, item.link, client)
                 except:
                     logging.exception("Exception during thread sending")
                     raise
             elif len(content.strip()) > 0:
                 rich_text = make_rich(content)
                 logging.info("Rich text length: %d" % (len(str(rich_text))))
-                rich_text.link("\n\nOriginal->", item["link"])
+                rich_text.link("\n\nOriginal->", item.link)
                 try:
-                    client.send_post(rich_text)
-                    logging.info("Sent post %s" % (item["link"]))
+                    if not offline:
+                        client.send_post(rich_text)
+                    logging.info("Sent post %s" % (item.link))
                 except Exception as e:
-                    logging.exception("Failed to post %s" % (item["link"]))
+                    logging.exception("Failed to post %s" % (item.link))
         else:
-            logging.debug("Not sending %s" % (item["link"]))
+            logging.debug("Not sending %s" % (item.link))
 
 
 while True:
