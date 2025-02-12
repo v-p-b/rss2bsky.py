@@ -1,0 +1,5 @@
+/config.json
+/path/
+/.idea/
+/__pycache__/
+rss2bsky.log
