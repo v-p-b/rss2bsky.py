@@ -9,6 +9,7 @@ This is a proof-of-concept implementation for posting RSS/Atom content to Bluesk
 * [arrow](https://arrow.readthedocs.io/) - Time handling for humans
 * [atproto](https://github.com/MarshalX/atproto) - AT protocol implementation for Python. The API of the library is still unstable, but the version is pinned in requirements.txt
 * [fastfeedparser](https://github.com/kagisearch/fastfeedparser) - For feed parsing with a unified API
+* [httpx](https://www.python-httpx.org/) - For grabbing remote media
 
 
 ## Features:
