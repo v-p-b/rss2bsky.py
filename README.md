@@ -8,7 +8,7 @@ This is a proof-of-concept implementation for posting RSS/Atom content to Bluesk
 
 * [arrow](https://arrow.readthedocs.io/) - Time handling for humans
 * [atproto](https://github.com/MarshalX/atproto) - AT protocol implementation for Python. The API of the library is still unstable, but the version is pinned in requirements.txt
-* [feedparser](https://feedparser.readthedocs.io/) - For feed parsing
+* [fastfeedparser](https://github.com/kagisearch/fastfeedparser) - For feed parsing with a unified API
 
 
 ## Features:
@@ -18,6 +18,7 @@ This is a proof-of-concept implementation for posting RSS/Atom content to Bluesk
 * Minimal rich-text support (links): Rich text is represented in a typed hierarchy in the AT protocol. This script currently performs post-processing on filtered string content of the input feeds to support links as long as they stand as a single line in the text. This definitely needs some improvement.
 * Threading for long posts
 * Tags
+* Image references: Can forward image links from RSS to Bsky
 
 ## Usage and configuration
 
