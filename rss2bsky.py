@@ -95,13 +95,13 @@ def frombsky_filter(content):
         return content
 
 
-def send_thread(msg, link, client, images = []):
+def send_thread(msg, link, client, images=[]):
     if offline:
         return
     posts = split_message(msg)
-    if len(images) > 4*len(posts):
-        extra = math.ceil((len(images)-4*len(posts))/4)
-        posts.extend([""]*extra)
+    if len(images) > 4 * len(posts):
+        extra = math.ceil((len(images) - 4 * len(posts)) / 4)
+        posts.extend([""] * extra)
     n = len(posts)
     parent = None
     root = None
@@ -110,9 +110,9 @@ def send_thread(msg, link, client, images = []):
         logging.debug("Post: '%s'" % p)
         rich_text = make_rich(p)
         rich_text.text(" %d/%d" % (i + 1, n))
-        embed=None
-        if i*4 < len(images):
-            embed=models.AppBskyEmbedImages.Main(images=images[i*4:(i+1)*4])
+        embed = None
+        if i * 4 < len(images):
+            embed = models.AppBskyEmbedImages.Main(images=images[i * 4 : (i + 1) * 4])
         if i == n - 1:
             rich_text.link("\n\nOriginal->", link)
         if i == 0:
@@ -123,18 +123,22 @@ def send_thread(msg, link, client, images = []):
             post = client.send_post(text=rich_text, reply_to=reply_ref, embed=embed)
         parent = models.create_strong_ref(post)
 
+
 def get_images(links):
-    images=[]
+    images = []
     for l in links:
         if l["type"] is None or not l["type"].startswith("image/"):
             continue
-        r=httpx.get(l["href"])
+        r = httpx.get(l["href"])
         if r.status_code != 200:
             continue
         img_blob = client.upload_blob(r.content)
-        img_model = models.AppBskyEmbedImages.Image(alt="Alt text TBD, sorry!", image=img_blob.blob)
+        img_model = models.AppBskyEmbedImages.Image(
+            alt="Alt text TBD, sorry!", image=img_blob.blob
+        )
         images.append(img_model)
     return images
+
 
 # FILTERS = [html_filter, length_filter, mention_filter]
 FILTERS = [frombsky_filter, html_filter, mention_filter]
@@ -185,17 +189,17 @@ def run():
         logging.info("Filtered Content length: %d" % (len(content)))
         logging.info("Images length: %d" % (len(images)))
         if rss_time > last_bsky:
-            if len(rich_text.build_text()) > 280 or len(images)>4:
+            if len(rich_text.build_text()) > 280 or len(images) > 4:
                 try:
-                    send_thread(content, item.link, client,images)
+                    send_thread(content, item.link, client, images)
                 except:
                     logging.exception("Exception during thread sending")
                     raise
-            elif len(content.strip()) > 0 or len(images)>0:
+            elif len(content.strip()) > 0 or len(images) > 0:
                 rich_text.link("\n\nOriginal->", item.link)
-                embed=None
-                if len(images)>0:
-                    embed=models.AppBskyEmbedImages.Main(images=images)
+                embed = None
+                if len(images) > 0:
+                    embed = models.AppBskyEmbedImages.Main(images=images)
                     logging.debug(repr(embed))
                 try:
                     if not offline:
