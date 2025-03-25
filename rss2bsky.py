@@ -184,11 +184,11 @@ def run():
         for filter_method in FILTERS:
             content = filter_method(content)
         rich_text = make_rich(content)
-        images = get_images(item.links)
         logging.info("Rich text length: %d" % (len(rich_text.build_text())))
         logging.info("Filtered Content length: %d" % (len(content)))
-        logging.info("Images length: %d" % (len(images)))
         if rss_time > last_bsky:
+            images = get_images(item.links)
+            logging.info("Images length: %d" % (len(images)))
             if len(rich_text.build_text()) > 280 or len(images) > 4:
                 try:
                     send_thread(content, item.link, client, images)
